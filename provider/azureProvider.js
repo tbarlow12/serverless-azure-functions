@@ -2,7 +2,7 @@
 
 const BbPromise = require('bluebird');
 const _ = require('lodash');
-const resourceManagement = require('@azure/arm-resources');
+const resourceManagement = require('azure-arm-resource');
 const path = require('path');
 const fs = require('fs');
 const request = require('request');
