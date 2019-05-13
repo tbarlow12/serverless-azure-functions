@@ -23,7 +23,7 @@ class AzureProvider {
     this.provider = this;
     this.serverless = serverless;
     this.existingFunctionApp = false;
-    this.deployedFunctionNames = []
+    this.deployedFunctionNames = [];
 
     this.serverless.setProvider(config.providerName, this);
   }
