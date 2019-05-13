@@ -6,7 +6,8 @@
   "main": "index.js",
   "author": "Azure Functions",
   "scripts": {
-    "test": "eslint **/*.js"
+    "test": "jest --config jest.config.json",
+    "lint": "eslint **/*.js"
   },
   "repository": {
     "git": "https://github.com/serverless/serverless-azure-functions"
@@ -31,7 +32,8 @@
     "request": "2.81.0"
   },
   "devDependencies": {
-    "eslint": "3.19.0"
+    "eslint": "3.19.0",
+    "jest": "^24.8.0"
   },
   "optionalDependencies": {
     "serverless-webpack": "^4.2.0",
