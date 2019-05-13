@@ -14,16 +14,6 @@ const config = require('../config');
 
 const pkg = require('../package.json');
 
-let resourceGroupName;
-let deploymentName;
-let functionAppName;
-let subscriptionId;
-let functionsAdminKey;
-let invocationId;
-let principalCredentials;
-let existingFunctionApp = false;
-const deployedFunctionNames = [];
-
 class AzureProvider {
   static getProviderName () {
     return config.providerName;
@@ -32,6 +22,8 @@ class AzureProvider {
   constructor (serverless) {
     this.provider = this;
     this.serverless = serverless;
+    this.existingFunctionApp = false;
+    this.deployedFunctionNames = []
 
     this.serverless.setProvider(config.providerName, this);
   }
@@ -41,9 +33,9 @@ class AzureProvider {
     this.options = options;
 
     return new BbPromise((resolve) => {
-      functionAppName = this.serverless.service.service;
-      resourceGroupName = this.serverless.service.provider.resourceGroup || `${functionAppName}-rg`;
-      deploymentName = this.serverless.service.provider.deploymentName || `${resourceGroupName}-deployment`;
+      this.functionAppName = this.serverless.service.service;
+      this.resourceGroupName = this.serverless.service.provider.resourceGroup || `${this.functionAppName}-rg`;
+      this.deploymentName = this.serverless.service.provider.this.deploymentName || `${this.resourceGroupName}-deployment`;
 
       resolve();
     });
@@ -63,10 +55,10 @@ class AzureProvider {
       // able to append the Serverless prefix to the displayed message.
       this.serverless.cli.log(message);
     }}).then((result) => {
-      principalCredentials = result.credentials;
-      subscriptionId = result.subscriptionId;
+      this.principalCredentials = result.credentials;
+      this.subscriptionId = result.subscriptionId;
 
-      return principalCredentials;
+      return this.principalCredentials;
     }).catch((error) => {
       error.message = error.message || (error.body ? error.body.message : 'Failed logging in to Azure');
       throw error;
@@ -79,12 +71,12 @@ class AzureProvider {
       tags: { sampletag: 'sampleValue' }
     };
 
-    this.serverless.cli.log(`Creating resource group: ${resourceGroupName}`);
-    const resourceClient = new resourceManagement.ResourceManagementClient(principalCredentials, subscriptionId);
+    this.serverless.cli.log(`Creating resource group: ${this.resourceGroupName}`);
+    const resourceClient = new resourceManagement.ResourceManagementClient(this.principalCredentials, this.subscriptionId);
     resourceClient.addUserAgentInfo(`${pkg.name}/${pkg.version}`);
 
     return new BbPromise((resolve, reject) => {
-      resourceClient.resourceGroups.createOrUpdate(resourceGroupName,
+      resourceClient.resourceGroups.createOrUpdate(this.resourceGroupName,
         groupParameters, (error, result) => {
           if (error) return reject(error);
           resolve(result);
@@ -93,16 +85,16 @@ class AzureProvider {
   }
 
   CreateFunctionApp () {
-    this.serverless.cli.log(`Creating function app: ${functionAppName}`);
-    const resourceClient = new resourceManagement.ResourceManagementClient(principalCredentials, subscriptionId);
-    let parameters = { functionAppName: { value: functionAppName } };
+    this.serverless.cli.log(`Creating function app: ${this.functionAppName}`);
+    const resourceClient = new resourceManagement.ResourceManagementClient(this.principalCredentials, this.subscriptionId);
+    let parameters = { functionAppName: { value: this.functionAppName } };
     resourceClient.addUserAgentInfo(`${pkg.name}/${pkg.version}`);
 
     const gitUrl = this.serverless.service.provider.gitUrl;
 
     if (gitUrl) {
       parameters = {
-        functionAppName: { value: functionAppName },
+        functionAppName: { value: this.functionAppName },
         gitUrl: { value: gitUrl }
       };
     }
@@ -154,8 +146,8 @@ class AzureProvider {
     };
 
     return new BbPromise((resolve, reject) => {
-      resourceClient.deployments.createOrUpdate(resourceGroupName,
-        deploymentName,
+      resourceClient.deployments.createOrUpdate(this.resourceGroupName,
+        this.deploymentName,
         deploymentParameters, (error, result) => {
           if (error) return reject(error);
 
@@ -169,13 +161,13 @@ class AzureProvider {
   }
 
   DeleteDeployment () {
-    this.serverless.cli.log(`Deleting deployment: ${deploymentName}`);
-    const resourceClient = new resourceManagement.ResourceManagementClient(principalCredentials, subscriptionId);
+    this.serverless.cli.log(`Deleting deployment: ${this.deploymentName}`);
+    const resourceClient = new resourceManagement.ResourceManagementClient(this.principalCredentials, this.subscriptionId);
     resourceClient.addUserAgentInfo(`${pkg.name}/${pkg.version}`);
 
     return new BbPromise((resolve, reject) => {
-      resourceClient.deployments.deleteMethod(resourceGroupName,
-        deploymentName, (error, result) => {
+      resourceClient.deployments.deleteMethod(this.resourceGroupName,
+        this.deploymentName, (error, result) => {
           if (error) return reject(error);
           resolve(result);
         });
@@ -183,12 +175,12 @@ class AzureProvider {
   }
 
   DeleteResourceGroup () {
-    this.serverless.cli.log(`Deleting resource group: ${resourceGroupName}`);
-    const resourceClient = new resourceManagement.ResourceManagementClient(principalCredentials, subscriptionId);
+    this.serverless.cli.log(`Deleting resource group: ${this.resourceGroupName}`);
+    const resourceClient = new resourceManagement.ResourceManagementClient(this.principalCredentials, this.subscriptionId);
     resourceClient.addUserAgentInfo(`${pkg.name}/${pkg.version}`);
 
     return new BbPromise((resolve, reject) => {
-      resourceClient.resourceGroups.deleteMethod(resourceGroupName, (error, result) => {
+      resourceClient.resourceGroups.deleteMethod(this.resourceGroupName, (error, result) => {
         if (error) {
           reject(error);
         } else {
@@ -200,10 +192,10 @@ class AzureProvider {
 
   getAdminKey () {
     const options = {
-      url: `https://${functionAppName}${config.scmDomain}${config.masterKeyApiPath}`,
+      url: `https://${this.functionAppName}${config.scmDomain}${config.masterKeyApiPath}`,
       json: true,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken
+        Authorization: config.bearer + this.principalCredentials.tokenCache._entries[0].accessToken
       }
     };
 
@@ -212,7 +204,7 @@ class AzureProvider {
         if (err) return reject(err);
         if (response.statusCode !== 200) return reject(body);
 
-        functionsAdminKey = body.masterKey;
+        this.functionsAdminKey = body.masterKey;
 
         resolve(body.masterKey);
       });
@@ -220,14 +212,14 @@ class AzureProvider {
   }
 
   pingHostStatus (functionName) {
-    const requestUrl = `https://${functionAppName}${config.functionAppDomain}/admin/functions/${functionName}/status`;
+    const requestUrl = `https://${this.functionAppName}${config.functionAppDomain}/admin/functions/${functionName}/status`;
     const options = {
-      host: functionAppName + config.functionAppDomain,
+      host: this.functionAppName + config.functionAppDomain,
       method: 'get',
       url: requestUrl,
       json: true,
       headers: {
-        'x-functions-key': functionsAdminKey,
+        'x-functions-key': this.functionsAdminKey,
         Accept: 'application/json,*/*'
       }
     };
@@ -248,39 +240,39 @@ class AzureProvider {
   }
 
   isExistingFunctionApp () {
-    const host = functionAppName + config.scmDomain;
+    const host = this.functionAppName + config.scmDomain;
 
     return new BbPromise((resolve, reject) => {
       dns.resolve4(host, (err) => {
         if (err) {
           if (err.message.includes('ENOTFOUND')) {
-            resolve(existingFunctionApp);
+            resolve(this.existingFunctionApp);
           } else {
             reject(err);
           }
         } else {
-          existingFunctionApp = true;
-          resolve(existingFunctionApp);
+          this.existingFunctionApp = true;
+          resolve(this.existingFunctionApp);
         }
       });
     });
   }
 
   getDeployedFunctionsNames () {
-    const requestUrl = `https://${functionAppName}${config.scmDomain}${config.functionsApiPath}`;
+    const requestUrl = `https://${this.functionAppName}${config.scmDomain}${config.functionsApiPath}`;
     const options = {
-      host: functionAppName + config.scmDomain,
+      host: this.functionAppName + config.scmDomain,
       method: 'get',
       url: requestUrl,
       json: true,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken,
+        Authorization: config.bearer + this.principalCredentials.tokenCache._entries[0].accessToken,
         Accept: 'application/json,*/*'
       }
     };
 
     return new BbPromise((resolve, reject) => {
-      if (existingFunctionApp) {
+      if (this.existingFunctionApp) {
         this.serverless.cli.log('Looking for deployed functions that are not part of the current deployment...');
         request(options, (err, res, body) => {
           if (err) {
@@ -293,7 +285,7 @@ class AzureProvider {
             if (res.statusCode === 200) {
 
               for (let functionNamesIndex = 0; functionNamesIndex < body.length; functionNamesIndex++) {
-                deployedFunctionNames.push(body[functionNamesIndex].name);
+                this.deployedFunctionNames.push(body[functionNamesIndex].name);
               }
             }
             resolve(res);
@@ -307,9 +299,9 @@ class AzureProvider {
 
   getLogsStream (functionName) {
     const logOptions = {
-      url: `https://${functionAppName}${config.scmDomain}${config.logStreamApiPath}${functionName}`,
+      url: `https://${this.functionAppName}${config.scmDomain}${config.logStreamApiPath}${functionName}`,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken,
+        Authorization: config.bearer + this.principalCredentials.tokenCache._entries[0].accessToken,
         Accept: '*/*'
       }
     };
@@ -325,11 +317,11 @@ class AzureProvider {
 
   getInvocationId (functionName) {
     const options = {
-      url: `https://${functionAppName}${config.scmDomain}${config.logInvocationsApiPath + functionAppName}-${functionName}/invocations?limit=5`,
+      url: `https://${this.functionAppName}${config.scmDomain}${config.logInvocationsApiPath + this.functionAppName}-${functionName}/invocations?limit=5`,
       method: 'GET',
       json: true,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken
+        Authorization: config.bearer + this.principalCredentials.tokenCache._entries[0].accessToken
       }
     };
 
@@ -338,7 +330,7 @@ class AzureProvider {
         if (err) return reject(err);
         if (response.statusCode !== 200) return reject(body);
 
-        invocationId = body.entries[0].id;
+        this.invocationId = body.entries[0].id;
 
         resolve(body.entries[0].id);
       });
@@ -346,13 +338,13 @@ class AzureProvider {
   }
 
   getLogsForInvocationId () {
-    this.serverless.cli.log(`Logs for InvocationId: ${invocationId}`);
+    this.serverless.cli.log(`Logs for InvocationId: ${this.invocationId}`);
     const options = {
-      url: `https://${functionAppName}${config.scmDomain}${config.logOutputApiPath}${invocationId}`,
+      url: `https://${this.functionAppName}${config.scmDomain}${config.logOutputApiPath}${this.invocationId}`,
       method: 'GET',
       json: true,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken
+        Authorization: config.bearer + this.principalCredentials.tokenCache._entries[0].accessToken
       }
     };
 
@@ -389,9 +381,9 @@ class AzureProvider {
       return new BbPromise((resolve, reject) => {
         const options = {
           headers: {
-            'x-functions-key': functionsAdminKey
+            'x-functions-key': this.functionsAdminKey
           },
-          url: `http://${functionAppName}${config.functionAppDomain}${config.functionAppApiPath + functionName}?${queryString}`,
+          url: `http://${this.functionAppName}${config.functionAppDomain}${config.functionAppApiPath + functionName}?${queryString}`,
           method: 'GET',
           json: true,
         };
@@ -408,7 +400,7 @@ class AzureProvider {
       });
     }
 
-    const requestUrl = `https://${functionAppName}${config.functionsAdminApiPath}${functionName}`;
+    const requestUrl = `https://${this.functionAppName}${config.functionsAdminApiPath}${functionName}`;
 
     const options = {
       host: config.functionAppDomain,
@@ -417,7 +409,7 @@ class AzureProvider {
       url: requestUrl,
       json: true,
       headers: {
-        'x-functions-key': functionsAdminKey,
+        'x-functions-key': this.functionsAdminKey,
         Accept: 'application/json,*/*'
       }
     };
@@ -435,9 +427,9 @@ class AzureProvider {
 
   syncTriggers () {
     const requestUrl = [
-      `https://management.azure.com/subscriptions/${subscriptionId}`,
-      `/resourceGroups/${resourceGroupName}/providers/Microsoft.Web/sites/`,
-      `${functionAppName}/functions/synctriggers?api-version=2015-08-01`
+      `https://management.azure.com/subscriptions/${this.subscriptionId}`,
+      `/resourceGroups/${this.resourceGroupName}/providers/Microsoft.Web/sites/`,
+      `${this.functionAppName}/functions/synctriggers?api-version=2015-08-01`
     ].join('');
     const options = {
       host: 'management.azure.com',
@@ -446,7 +438,7 @@ class AzureProvider {
       url: requestUrl,
       json: true,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken,
+        Authorization: config.bearer + this.principalCredentials.tokenCache._entries[0].accessToken,
         'Accept': 'application/json,*/*'
       }
     };
@@ -465,19 +457,19 @@ class AzureProvider {
 
   runKuduCommand (command) {
     this.serverless.cli.log(`Running Kudu command ${command}...`);
-    const requestUrl = `https://${functionAppName}${config.scmDomain}${config.scmCommandApiPath}`;
+    const requestUrl = `https://${this.functionAppName}${config.scmDomain}${config.scmCommandApiPath}`;
     let postBody = {
       command: command,
       dir: 'site\\wwwroot'
     };
     let options = {
-      host: functionAppName + config.scmDomain,
+      host: this.functionAppName + config.scmDomain,
       method: 'post',
       body: postBody,
       url: requestUrl,
       json: true,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken,
+        Authorization: config.bearer + this.principalCredentials.tokenCache._entries[0].accessToken,
         Accept: 'application/json'
       }
     };
@@ -503,7 +495,7 @@ class AzureProvider {
   cleanUpFunctionsBeforeDeploy (serverlessFunctions) {
     const deleteFunctionPromises = [];
 
-    deployedFunctionNames.forEach((functionName) => {
+    this.deployedFunctionNames.forEach((functionName) => {
       if (serverlessFunctions.indexOf(functionName) < 0) {
         this.serverless.cli.log(`Deleting function : ${functionName}`);
         deleteFunctionPromises.push(this.deleteFunction(functionName));
@@ -514,14 +506,14 @@ class AzureProvider {
   }
 
   deleteFunction(functionName) {
-    const requestUrl = `https://${functionAppName}${config.scmVfsPath}${functionName}/?recursive=true`;
+    const requestUrl = `https://${this.functionAppName}${config.scmVfsPath}${functionName}/?recursive=true`;
     const options = {
-      host: functionAppName + config.scmDomain,
+      host: this.functionAppName + config.scmDomain,
       method: 'delete',
       url: requestUrl,
       json: true,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken,
+        Authorization: config.bearer + this.principalCredentials.tokenCache._entries[0].accessToken,
         Accept: '*/*'
       }
     };
@@ -541,14 +533,14 @@ class AzureProvider {
     const packageJsonFilePath = path.join(this.serverless.config.servicePath, 'package.json');
     this.serverless.cli.log('Uploading package.json...');
 
-    const requestUrl = `https://${functionAppName}${config.scmVfsPath}package.json`;
+    const requestUrl = `https://${this.functionAppName}${config.scmVfsPath}package.json`;
     const options = {
-      host: functionAppName + config.scmDomain,
+      host: this.functionAppName + config.scmDomain,
       method: 'put',
       url: requestUrl,
       json: true,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken,
+        Authorization: config.bearer + this.principalCredentials.tokenCache._entries[0].accessToken,
         Accept: '*/*'
       }
     };
@@ -594,11 +586,11 @@ class AzureProvider {
         reject('Could not find zip package');
       }
 
-      const requestUrl = `https://${functionAppName}${config.scmZipApiPath}/${functionName}/`;
+      const requestUrl = `https://${this.functionAppName}${config.scmZipApiPath}/${functionName}/`;
       const options = {
         url: requestUrl,
         headers: {
-          Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken,
+          Authorization: config.bearer + this.principalCredentials.tokenCache._entries[0].accessToken,
           Accept: '*/*'
         }
       };

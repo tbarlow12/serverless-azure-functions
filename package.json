@@ -34,7 +34,8 @@
   "devDependencies": {
     "coveralls": "^3.0.3",
     "eslint": "3.19.0",
-    "jest": "^24.8.0"
+    "jest": "^24.8.0",
+    "sinon": "^7.3.2"
   },
   "optionalDependencies": {
     "serverless-webpack": "^4.2.0",
