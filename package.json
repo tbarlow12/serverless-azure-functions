@@ -23,8 +23,8 @@
     "serverless.com"
   ],
   "dependencies": {
+    "@azure/arm-resources": "^1.0.1",
     "az-login": "^0.3.0",
-    "azure-arm-resource": "^2.0.0-preview",
     "bluebird": "^3.4.6",
     "jsonpath": "^0.2.11",
     "lodash": "^4.16.6",
