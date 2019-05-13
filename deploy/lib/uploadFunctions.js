@@ -10,7 +10,7 @@ module.exports = {
     this.serverless.service.getAllFunctions().forEach((functionName) => {
 
       createFunctionPromises.push(this.provider.uploadFunction(functionName)
-        .then(() => this.provider.runKuduCommand('mv '+ path.join(functionName, functionName +'-function.json') +' '+ path.join(functionName, 'function.json'))));
+        .then(() => this.provider.runKuduCommand('mv '+ path.join(functionName, functionName, 'function.json') +' '+ path.join(functionName, 'function.json'))));
     });
 
     return BbPromise.all(createFunctionPromises)

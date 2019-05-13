@@ -19,7 +19,7 @@ module.exports = {
 
 function moveJsonFile(functionName) {
   const dirPath = path.join(this.serverless.config.servicePath, '.webpack', functionName);
-  const jsonFileName = `${functionName}-function.json`;
+  const jsonFileName = path.join(functionName, 'function.json');
   const jsonFileSrcPath = path.join(this.serverless.config.servicePath, jsonFileName);
   const jsonFileDestPath = path.join(dirPath, jsonFileName);
 
@@ -30,7 +30,7 @@ function moveJsonFile(functionName) {
         fs.renameSync(jsonFileSrcPath, jsonFileDestPath);
       }
       else {
-        this.serverless.cli.log(`Warning: No generated ${functionName}-function.json file was found. It will not be included in the package.`);
+        this.serverless.cli.log(`Warning: No generated ${jsonFileName} file was found. It will not be included in the package.`);
       }
     }
 

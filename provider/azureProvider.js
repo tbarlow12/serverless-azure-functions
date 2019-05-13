@@ -575,7 +575,7 @@ class AzureProvider {
       const functionJSON = params.functionsJson;
       functionJSON.entryPoint = entryPoint;
       functionJSON.scriptFile = filePath;
-      fs.writeFileSync(path.join(this.serverless.config.servicePath, functionName+'-function.json'), JSON.stringify(functionJSON, null, 4));
+      fs.writeFileSync(path.join(this.serverless.config.servicePath, functionName, 'function.json'), JSON.stringify(functionJSON, null, 4));
       resolve();
     });
   }
