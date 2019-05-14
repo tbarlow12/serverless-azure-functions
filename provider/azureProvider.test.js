@@ -1,7 +1,7 @@
 'use strict';
 // const sinon = require('sinon');
-const fs = require('fs');
-const os = require('os');
+// const fs = require('fs');
+// const os = require('os');
 const Serverless = require('../test/serverless');
 // const AzureProvider = require('./azureProvider');
 
@@ -34,9 +34,9 @@ describe('Azure Provider', () => {
   });
 
   afterEach(() => {
-    serverless.setProvider.restore();
-    fs.readFileSync.restore();
-    os.homedir.restore();
+    // serverless.setProvider.restore();
+    // fs.readFileSync.restore();
+    // os.homedir.restore();
   });
 
   describe('#constructor()', () => {
