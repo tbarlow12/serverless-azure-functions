@@ -1,6 +1,5 @@
 const BbPromise = require('bluebird');
 const _ = require('lodash');
-const resourceManagement = require('azure-arm-resource');
 const path = require('path');
 const fs = require('fs');
 const request = require('request');
@@ -8,7 +7,8 @@ const dns = require('dns');
 const jsonpath = require('jsonpath');
 const parseBindings = require('../shared/parseBindings');
 const config = require('../config');
-import { interactiveLoginWithAuthResponse } from '@azure/ms-rest-nodeauth';
+import { ResourceManagementClient } from '@azure/arm-resources';
+
 
 const pkg = require('../../package.json');
 
@@ -18,11 +18,11 @@ let functionAppName;
 let subscriptionId;
 let functionsAdminKey;
 let invocationId;
-let principalCredentials;
 let existingFunctionApp = false;
 const deployedFunctionNames = [];
 
 export default class AzureProvider {
+  
   static getProviderName() {
     return config.providerName;
   }
@@ -30,6 +30,7 @@ export default class AzureProvider {
   constructor(serverless) {
     this.provider = this;
     this.serverless = serverless;
+    this.credentials = serverless.variables.azureCredentials;
 
     this.serverless.setProvider(config.providerName, this);
   }
@@ -37,6 +38,7 @@ export default class AzureProvider {
   initialize(serverless, options) {
     this.serverless = serverless;
     this.options = options;
+    this.credentials = serverless.variables.azureCredentials;
 
     // Overrides function app domains.
     // In instances where the function app is deployed in an App Service Environment (ASE)
@@ -61,21 +63,6 @@ export default class AzureProvider {
     return this.parsedBindings;
   }
 
-  async Login() {
-    try {
-      const authResult = await interactiveLoginWithAuthResponse();
-
-      return {
-        principalCredentials: authResult.credentials,
-        subscriptionId: authResult.subscriptionId
-      };
-    }
-    catch (error) {
-      error.message = error.message || (error.body ? error.body.message : 'Failed logging in to Azure');
-      throw error;
-    }
-  }
-
   CreateResourceGroup() {
     const groupParameters = {
       location: this.serverless.service.provider.location,
@@ -83,7 +70,7 @@ export default class AzureProvider {
     };
 
     this.serverless.cli.log(`Creating resource group: ${resourceGroupName}`);
-    const resourceClient = new resourceManagement.ResourceManagementClient(principalCredentials, subscriptionId);
+    const resourceClient = new ResourceManagementClient(this.credentials, subscriptionId);
     resourceClient.addUserAgentInfo(`${pkg.name}/${pkg.version}`);
 
     return new BbPromise((resolve, reject) => {
@@ -97,7 +84,7 @@ export default class AzureProvider {
 
   CreateFunctionApp() {
     this.serverless.cli.log(`Creating function app: ${functionAppName}`);
-    const resourceClient = new resourceManagement.ResourceManagementClient(principalCredentials, subscriptionId);
+    const resourceClient = new ResourceManagementClient(this.credentials, subscriptionId);
     let parameters = { functionAppName: { value: functionAppName } };
     resourceClient.addUserAgentInfo(`${pkg.name}/${pkg.version}`);
 
@@ -173,7 +160,7 @@ export default class AzureProvider {
 
   DeleteDeployment() {
     this.serverless.cli.log(`Deleting deployment: ${deploymentName}`);
-    const resourceClient = new resourceManagement.ResourceManagementClient(principalCredentials, subscriptionId);
+    const resourceClient = new ResourceManagementClient(this.credentials, subscriptionId);
     resourceClient.addUserAgentInfo(`${pkg.name}/${pkg.version}`);
 
     return new BbPromise((resolve, reject) => {
@@ -187,7 +174,7 @@ export default class AzureProvider {
 
   DeleteResourceGroup() {
     this.serverless.cli.log(`Deleting resource group: ${resourceGroupName}`);
-    const resourceClient = new resourceManagement.ResourceManagementClient(principalCredentials, subscriptionId);
+    const resourceClient = new ResourceManagementClient(this.credentials, subscriptionId);
     resourceClient.addUserAgentInfo(`${pkg.name}/${pkg.version}`);
 
     return new BbPromise((resolve, reject) => {
@@ -206,7 +193,7 @@ export default class AzureProvider {
       url: `https://${functionAppName}${config.scmDomain}${config.masterKeyApiPath}`,
       json: true,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken
+        Authorization: config.bearer + this.credentials.tokenCache._entries[0].accessToken
       }
     };
 
@@ -277,7 +264,7 @@ export default class AzureProvider {
       url: requestUrl,
       json: true,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken,
+        Authorization: config.bearer + this.credentials.tokenCache._entries[0].accessToken,
         Accept: 'application/json,*/*'
       }
     };
@@ -312,7 +299,7 @@ export default class AzureProvider {
     const logOptions = {
       url: `https://${functionAppName}${config.scmDomain}${config.logStreamApiPath}${functionName}`,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken,
+        Authorization: config.bearer + this.credentials.tokenCache._entries[0].accessToken,
         Accept: '*/*'
       }
     };
@@ -332,7 +319,7 @@ export default class AzureProvider {
       method: 'GET',
       json: true,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken
+        Authorization: config.bearer + this.credentials.tokenCache._entries[0].accessToken
       }
     };
 
@@ -355,7 +342,7 @@ export default class AzureProvider {
       method: 'GET',
       json: true,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken
+        Authorization: config.bearer + this.credentials.tokenCache._entries[0].accessToken
       }
     };
 
@@ -449,7 +436,7 @@ export default class AzureProvider {
       url: requestUrl,
       json: true,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken,
+        Authorization: config.bearer + this.credentials.tokenCache._entries[0].accessToken,
         'Accept': 'application/json,*/*'
       }
     };
@@ -480,7 +467,7 @@ export default class AzureProvider {
       url: requestUrl,
       json: true,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken,
+        Authorization: config.bearer + this.credentials.tokenCache._entries[0].accessToken,
         Accept: 'application/json'
       }
     };
@@ -524,7 +511,7 @@ export default class AzureProvider {
       url: requestUrl,
       json: true,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken,
+        Authorization: config.bearer + this.credentials.tokenCache._entries[0].accessToken,
         Accept: '*/*'
       }
     };
@@ -551,7 +538,7 @@ export default class AzureProvider {
       url: requestUrl,
       json: true,
       headers: {
-        Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken,
+        Authorization: config.bearer + this.credentials.tokenCache._entries[0].accessToken,
         Accept: '*/*'
       }
     };
@@ -601,7 +588,7 @@ export default class AzureProvider {
       const options = {
         url: requestUrl,
         headers: {
-          Authorization: config.bearer + principalCredentials.tokenCache._entries[0].accessToken,
+          Authorization: config.bearer + this.credentials.tokenCache._entries[0].accessToken,
           Accept: '*/*'
         }
       };
