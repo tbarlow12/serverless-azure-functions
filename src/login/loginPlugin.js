@@ -31,6 +31,8 @@ export class AzureLoginPlugin {
       }
 
       this.serverless.variables.azureCredentials = authResult.credentials;
+      this.serverless.variables.azureSubscriptionId = authResult.subscriptionId;
+      
     }
     catch (e) {
       this.serverless.cli.log('Error logging into azure');

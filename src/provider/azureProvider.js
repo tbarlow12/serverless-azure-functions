@@ -15,7 +15,6 @@ const pkg = require('../../package.json');
 let resourceGroupName;
 let deploymentName;
 let functionAppName;
-let subscriptionId;
 let functionsAdminKey;
 let invocationId;
 let existingFunctionApp = false;
@@ -31,6 +30,7 @@ export default class AzureProvider {
     this.provider = this;
     this.serverless = serverless;
     this.credentials = serverless.variables.azureCredentials;
+    this.subscriptionId = serverless.variables.subscriptionId;
 
     this.serverless.setProvider(config.providerName, this);
   }
@@ -39,6 +39,8 @@ export default class AzureProvider {
     this.serverless = serverless;
     this.options = options;
     this.credentials = serverless.variables.azureCredentials;
+    this.subscriptionId = serverless.variables.subscriptionId;
+
 
     // Overrides function app domains.
     // In instances where the function app is deployed in an App Service Environment (ASE)
@@ -70,7 +72,7 @@ export default class AzureProvider {
     };
 
     this.serverless.cli.log(`Creating resource group: ${resourceGroupName}`);
-    const resourceClient = new ResourceManagementClient(this.credentials, subscriptionId);
+    const resourceClient = new ResourceManagementClient(this.credentials, this.subscriptionId);
     resourceClient.addUserAgentInfo(`${pkg.name}/${pkg.version}`);
 
     return new BbPromise((resolve, reject) => {
@@ -84,7 +86,7 @@ export default class AzureProvider {
 
   CreateFunctionApp() {
     this.serverless.cli.log(`Creating function app: ${functionAppName}`);
-    const resourceClient = new ResourceManagementClient(this.credentials, subscriptionId);
+    const resourceClient = new ResourceManagementClient(this.credentials, this.subscriptionId);
     let parameters = { functionAppName: { value: functionAppName } };
     resourceClient.addUserAgentInfo(`${pkg.name}/${pkg.version}`);
 
@@ -160,7 +162,7 @@ export default class AzureProvider {
 
   DeleteDeployment() {
     this.serverless.cli.log(`Deleting deployment: ${deploymentName}`);
-    const resourceClient = new ResourceManagementClient(this.credentials, subscriptionId);
+    const resourceClient = new ResourceManagementClient(this.credentials, this.subscriptionId);
     resourceClient.addUserAgentInfo(`${pkg.name}/${pkg.version}`);
 
     return new BbPromise((resolve, reject) => {
@@ -174,7 +176,7 @@ export default class AzureProvider {
 
   DeleteResourceGroup() {
     this.serverless.cli.log(`Deleting resource group: ${resourceGroupName}`);
-    const resourceClient = new ResourceManagementClient(this.credentials, subscriptionId);
+    const resourceClient = new ResourceManagementClient(this.credentials, this.subscriptionId);
     resourceClient.addUserAgentInfo(`${pkg.name}/${pkg.version}`);
 
     return new BbPromise((resolve, reject) => {
@@ -425,7 +427,7 @@ export default class AzureProvider {
 
   syncTriggers() {
     const requestUrl = [
-      `https://management.azure.com/subscriptions/${subscriptionId}`,
+      `https://management.azure.com/subscriptions/${this.subscriptionId}`,
       `/resourceGroups/${resourceGroupName}/providers/Microsoft.Web/sites/`,
       `${functionAppName}/functions/synctriggers?api-version=2015-08-01`
     ].join('');
