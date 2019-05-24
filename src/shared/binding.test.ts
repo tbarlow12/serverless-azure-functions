@@ -8,4 +8,4 @@ describe('Bindings', () => {
     const bindingsMetadata = getBindingsMetaData(sls);
     expect(sls.cli.log).toBeCalledWith('Parsing Azure Functions Bindings.json...');
   });
-});
+});  
